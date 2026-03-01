@@ -24,7 +24,7 @@ data = {
 print("Simple Quiz Game.\n")
 print("Available Categories: Geography, Math, Compsci")
 
-while True:
+while True: # loop until user inputs a valid category.
     choice = input("\nPick a category: ").strip().capitalize()
     
     if choice in data:
@@ -36,7 +36,7 @@ while True:
 random.shuffle(questions)
 score = 0
 
-for q_list in questions:
+for q_list in questions: # loop through the questions in the chosen category and ask the user.
     while True:
         question_text = q_list[0]
         option1 = q_list[1]
@@ -53,7 +53,7 @@ for q_list in questions:
 
         user_guess = input("Type the number of your answer: ")
 
-        try: 
+        try: # error handling for invalid input (non-integer or out of range).
             user_guess_number = int(user_guess)
             
             if user_guess_number < 1 or user_guess_number > 4:
@@ -68,11 +68,11 @@ for q_list in questions:
                 correct_text = q_list[correct_answer]
                 print("The correct answer was: " + correct_text)
 
-            break
+            break # to proceed to the next question
 
-        except ValueError:
+        except ValueError: # to catch errors where input from usesr is not a number
             print("Invalid input. Please enter a number (1-4).")
        
 print("\nThank you for playing.")
-print(f"Category: {choice}")
+print(f"Category: {choice}") # f-string to inject variables
 print(f"Your final score is: {score}/3\n")
