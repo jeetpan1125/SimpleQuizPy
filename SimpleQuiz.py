@@ -1,10 +1,21 @@
-# Simple Quiz Game with Categories by Jeet Panchal
-
+# Web Quiz Backend by Jeet Panchal
 import random
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# Format: [Question, Options..., Correct Index] 
-# if you want to edit follow the same format.
-data = {
+app = FastAPI()
+
+# CRITICAL: This allows your HTML page to safely talk to your Python backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 1. Your original data structure (Slightly cleaned up for web extraction)
+quiz_data = {
     "Geography": [
         ["What is the capital of France?", "Paris", "Delhi", "Lagos", "Rome", 1],
         ["Which is the largest ocean?", "Atlantic", "Indian", "Pacific", "Arctic", 3],
@@ -21,58 +32,50 @@ data = {
         ["Which of these is an Operating System?", "Python", "Windows", "HTML", "Java", 2]
     ]
 }
-print("Simple Quiz Game.\n")
-print("Available Categories: Geography, Math, Compsci")
 
-while True: # loop until user inputs a valid category.
-    choice = input("\nPick a category: ").strip().capitalize()
+# This defines the data structure for checking answers via web requests
+class AnswerSubmission(BaseModel):
+    category: str
+    question_index: int
+    selected_option_number: int
+
+# 2. ENDPOINT 1: Send the selected category's questions to the browser (hiding correct indices!)
+@app.get("/api/questions/{category}")
+def get_questions_by_category(category: str):
+    category_formatted = category.strip().capitalize()
     
-    if choice in data:
-        questions = data[choice]
-        break
-    else:
-        print(f"'{choice}' is not a valid category. Please try again.")
+    if category_formatted not in quiz_data:
+        return {"error": "Category not found"}
+    
+    questions = quiz_data[category_formatted]
+    
+    # Format the questions safely so the frontend can't see the answers in the source code
+    safe_questions = []
+    for index, q in enumerate(questions):
+        safe_questions.append({
+            "index": index,
+            "question_text": q[0],
+            "options": [q[1], q[2], q[3], q[4]]
+        })
+        
+    return safe_questions
 
-random.shuffle(questions)
-score = 0
-
-for q_list in questions: # loop through the questions in the chosen category and ask the user.
-    while True:
-        question_text = q_list[0]
-        option1 = q_list[1]
-        option2 = q_list[2]
-        option3 = q_list[3]
-        option4 = q_list[4]
-        correct_answer = q_list[5]
-
-        print("\n" + question_text)
-        print(f"1. {option1}")
-        print(f"2. {option2}")
-        print(f"3. {option3}")
-        print(f"4. {option4}")
-
-        user_guess = input("Type the number of your answer: ")
-
-        try: # error handling for invalid input (non-integer or out of range).
-            user_guess_number = int(user_guess)
-            
-            if user_guess_number < 1 or user_guess_number > 4:
-                print("Invalid. Please enter a number ranging from 1 to 4 inclusive.")
-                continue
-
-            if user_guess_number == correct_answer:
-                print("Correct.")
-                score = score + 1
-            else:
-                print("Wrong answer.")
-                correct_text = q_list[correct_answer]
-                print("The correct answer was: " + correct_text)
-
-            break # to proceed to the next question
-
-        except ValueError: # to catch errors where input from usesr is not a number
-            print("Invalid input. Please enter a number (1-4).")
-       
-print("\nThank you for playing.")
-print(f"Category: {choice}") # f-string to inject variables
-print(f"Your final score is: {score}/3\n")
+# 3. ENDPOINT 2: Receive the user's web click and check if they got it right
+@app.post("/api/check")
+def check_answer(submission: AnswerSubmission):
+    category = submission.category.strip().capitalize()
+    
+    if category not in quiz_data:
+        return {"error": "Category not found"}
+        
+    # Look up the actual question using the index sent by the frontend
+    actual_question = quiz_data[category][submission.question_index]
+    correct_option_index = actual_question[5] # The index integer (1-4)
+    
+    is_correct = (submission.selected_option_number == correct_option_index)
+    correct_text = actual_question[correct_option_index]
+    
+    return {
+        "correct": is_correct,
+        "correct_answer_text": correct_text
+    }

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic CS Quiz Platform</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #26173d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .quiz-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 480px;
+        }
+        .title {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .category-select {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .btn {
+            background-color: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            padding: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+            color: #2563eb;
+        }
+        .category-tag {
+            color: #3b82f6;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .feedback {
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 24px;
+            font-size: 1.1rem;
+        }
+        .correct { color: #10b981; }
+        .incorrect { color: #ef4444; }
+        #next-btn {
+            margin-top: 20px;
+            width: 100%;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+            text-align: center;
+        }
+        #next-btn:hover { background-color: #2563eb; }
+    </style>
+</head>
+<body>
+
+    <div class="quiz-container" id="quiz-box">
+        <div id="category-screen">
+            <h2 class="title">Pick a Quiz Category</h2>
+            <div class="category-select">
+                <button class="btn" onclick="startQuiz('Geography')">Geography</button>
+                <button class="btn" onclick="startQuiz('Math')">Maths</button>
+                <button class="btn" onclick="startQuiz('Compsci')">Computer Science</button>
+            </div>
+        </div>
+
+        <div id="quiz-screen" style="display: none;">
+            <div id="category-tag" class="category-tag"></div>
+            <h3 id="question-text" style="color: #1f2937; margin-top: 5px;">Question placeholder</h3>
+            
+            <div id="options-list" class="category-select" style="margin-top: 20px;">
+                </div>
+
+            <div id="feedback" class="feedback"></div>
+            <button id="next-btn" onclick="nextQuestion()">Next Question →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentCategory = "";
+        let questions = [];
+        let currentIndex = 0;
+        let score = 0;
+
+        // 1. Fetch questions from FastAPI when a user clicks a category
+        async function startQuiz(category) {
+            currentCategory = category;
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/questions/${category}`);
+                questions = await response.json();
+                
+                // Hide screen 1, show screen 2
+                document.getElementById('category-screen').style.display = 'none';
+                document.getElementById('quiz-screen').style.display = 'block';
+                
+                displayQuestion();
+            } catch (error) {
+                console.error("Error connecting to backend:", error);
+                alert("Could not connect to Python backend! Is uvicorn running?");
+            }
+        }
+
+        // 2. Render the current question to the screen
+        function displayQuestion() {
+            if (currentIndex >= questions.length) {
+                document.getElementById('quiz-box').innerHTML = `
+                    <h2 class='title'>Quiz Complete! 🎉</h2>
+                    <p style='text-align:center; font-size:1.2rem;'>Category: <b>${currentCategory}</b></p>
+                    <p style='text-align:center; font-size:1.5rem; color:#3b82f6;'>Score: <b>${score}/${questions.length}</b></p>
+                    <button class='btn' style='width:100%; text-align:center; margin-top:10px;' onclick='window.location.reload()'>Play Again</button>
+                `;
+                return;
+            }
+
+            const q = questions[currentIndex];
+            document.getElementById('category-tag').innerText = currentCategory;
+            document.getElementById('question-text').innerText = q.question_text;
+            document.getElementById('feedback').innerText = "";
+            document.getElementById('next-btn').style.display = "none";
+
+            const optionsList = document.getElementById('options-list');
+            optionsList.innerHTML = ""; // Clear old buttons
+
+            // Map choices to 1-4 option integers to match backend expectation
+            q.options.forEach((optionText, i) => {
+                const button = document.createElement('button');
+                button.className = 'btn';
+                button.innerText = `${i + 1}. ${optionText}`;
+                // Option numbers are 1-indexed (1, 2, 3, 4) in your backend data array
+                button.onclick = () => submitAnswer(q.index, i + 1);
+                optionsList.appendChild(button);
+            });
+        }
+
+        // 3. Post selected answer back to Python backend to evaluate
+        async function submitAnswer(questionIdx, optionNum) {
+            // Freeze buttons so user can't click multiple options
+            const buttons = document.querySelectorAll('#options-list .btn');
+            buttons.forEach(btn => btn.disabled = true);
+
+            const response = await fetch('http://127.0.0.1:8000/api/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: currentCategory,
+                    question_index: questionIdx,
+                    selected_option_number: optionNum
+                })
+            });
+
+            const result = await response.json();
+            const feedbackDiv = document.getElementById('feedback');
+
+            if (result.correct) {
+                feedbackDiv.innerText = "Correct! ✨";
+                feedbackDiv.className = "feedback correct";
+                score++;
+            } else {
+                feedbackDiv.innerText = `Wrong answer. Correct choice: ${result.correct_answer_text}`;
+                feedbackDiv.className = "feedback incorrect";
+            }
+
+            document.getElementById('next-btn').style.display = "block";
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            displayQuestion();
+        }
+    </script>
+</body>
+</html>
