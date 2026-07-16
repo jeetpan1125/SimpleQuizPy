@@ -11,16 +11,28 @@ This is my 1st full-stack Python and JavaScript project for GitHub.
 ## Clone or Download the Project
 Open your terminal and run: 
 ```bash
-git clone [https://github.com/jeetpan1125/SimpleQuizPy.git](https://github.com/jeetpan1125/SimpleQuizPy.git)
+git clone https://github.com/jeetpan1125/SimpleQuizPy.git
 cd SimpleQuizPy
 ```
 
 ## How to Run
 To run this full-stack app locally, you need to start the backend server first, then open the frontend webpage.
-1. Create a fresh virtual environment (python3 -m venv .venv)
-2. Activate the virtual enviornment (source .venv/bin/activate)
-3. Install the required packages (pip install -r requirements.txt)
-4. Start the backend server (uvicorn SimpleQuiz:app --reload)
+1. Create a fresh virtual environment 
+```bash 
+python3 -m venv .venv
+```
+2. Activate the virtual enviornment:
+```bash 
+source .venv/bin/activate
+```
+3. Install the required packages:
+```bash     
+pip install -r requirements.txt
+```
+4. Start the backend server: 
+```bash 
+uvicorn SimpleQuiz:app --reload
+```
 5. Locate the index.html file in your folder explorer and double-click it to open the webpage.
 
 ## Files
